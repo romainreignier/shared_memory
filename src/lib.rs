@@ -53,6 +53,7 @@ pub struct ShmemConf {
     flink_path: Option<PathBuf>,
     size: usize,
     ext: os_impl::ShmemConfExt,
+    unrestricted: bool,
 }
 impl Drop for ShmemConf {
     fn drop(&mut self) {
@@ -100,6 +101,13 @@ impl ShmemConf {
         self
     }
 
+    /// Sets permissions to unrestricted access:
+    /// A null DACL for windows or 0666 for UNIX.
+    pub fn set_unrestricted(mut self) -> Self {
+        self.unrestricted = true;
+        self
+    }
+
     /// Create a new mapping using the current configuration
     pub fn create(mut self) -> Result<Shmem, ShmemError> {
         if self.size == 0 {
@@ -118,7 +126,7 @@ impl ShmemConf {
                 // Generate random ID until one works
                 loop {
                     let cur_id = format!("/shmem_{:X}", rand::random::<u64>());
-                    match os_impl::create_mapping(&cur_id, self.size) {
+                    match os_impl::create_mapping(&cur_id, self.size, self.unrestricted) {
                         Err(ShmemError::MappingIdExists) => continue,
                         Ok(m) => break m,
                         Err(e) => {
@@ -127,7 +135,9 @@ impl ShmemConf {
                     };
                 }
             }
-            Some(ref specific_id) => os_impl::create_mapping(specific_id, self.size)?,
+            Some(ref specific_id) => {
+                os_impl::create_mapping(specific_id, self.size, self.unrestricted)?
+            }
         };
         debug!("Created shared memory mapping '{}'", mapping.unique_id);
 

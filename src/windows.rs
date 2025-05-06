@@ -136,6 +136,7 @@ fn new_map(
     mut map_size: usize,
     create: bool,
     allow_raw: bool,
+    _unrestricted: bool,
 ) -> Result<MapData, ShmemError> {
     // Create file to back the shared memory
     let mut file_path = get_tmp_dir()?;
@@ -267,8 +268,12 @@ fn new_map(
 }
 
 //Creates a mapping specified by the uid and size
-pub fn create_mapping(unique_id: &str, map_size: usize) -> Result<MapData, ShmemError> {
-    new_map(unique_id, map_size, true, false)
+pub fn create_mapping(
+    unique_id: &str,
+    map_size: usize,
+    unrestricted: bool,
+) -> Result<MapData, ShmemError> {
+    new_map(unique_id, map_size, true, false, unrestricted)
 }
 
 //Opens an existing mapping specified by its uid
@@ -277,5 +282,5 @@ pub fn open_mapping(
     map_size: usize,
     ext: &ShmemConfExt,
 ) -> Result<MapData, ShmemError> {
-    new_map(unique_id, map_size, false, ext.allow_raw)
+    new_map(unique_id, map_size, false, ext.allow_raw, false)
 }
