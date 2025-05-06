@@ -8,6 +8,8 @@ use std::io::{ErrorKind, Read, Write};
 use std::fs::remove_file;
 use std::path::{Path, PathBuf};
 
+pub use nix::sys::stat::Mode as ShmemMode;
+
 use cfg_if::cfg_if;
 
 cfg_if! {
@@ -53,6 +55,7 @@ pub struct ShmemConf {
     flink_path: Option<PathBuf>,
     size: usize,
     ext: os_impl::ShmemConfExt,
+    mode: Option<ShmemMode>,
 }
 impl Drop for ShmemConf {
     fn drop(&mut self) {
@@ -100,6 +103,12 @@ impl ShmemConf {
         self
     }
 
+    /// Sets the mode of the shared memory
+    pub fn mode(mut self, mode: ShmemMode) -> Self {
+        self.mode = Some(mode);
+        self
+    }
+
     /// Create a new mapping using the current configuration
     pub fn create(mut self) -> Result<Shmem, ShmemError> {
         if self.size == 0 {
@@ -118,7 +127,7 @@ impl ShmemConf {
                 // Generate random ID until one works
                 loop {
                     let cur_id = format!("/shmem_{:X}", rand::random::<u64>());
-                    match os_impl::create_mapping(&cur_id, self.size) {
+                    match os_impl::create_mapping(&cur_id, self.size, self.mode) {
                         Err(ShmemError::MappingIdExists) => continue,
                         Ok(m) => break m,
                         Err(e) => {
@@ -127,7 +136,7 @@ impl ShmemConf {
                     };
                 }
             }
-            Some(ref specific_id) => os_impl::create_mapping(specific_id, self.size)?,
+            Some(ref specific_id) => os_impl::create_mapping(specific_id, self.size, self.mode)?,
         };
         debug!("Created shared memory mapping '{}'", mapping.unique_id);
 
